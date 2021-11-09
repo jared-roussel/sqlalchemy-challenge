@@ -41,12 +41,12 @@ def welcome():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations</br>"
         f"/api/v1.0/tobs</br>"
-        f"/api/v1.0/<start> and /api/v1.0/<start>/<end></br>"
+        f"/api/v1.0/<start> and /api/v1.0/<end></br>"
     )
 
 
 @app.route("/api/v1.0/precipitation")
-def names():
+def precipitation():
     # Create our session (link) from Python to the DB
     session = Session(engine)
     query = session.query(measurement.date, measurement.prcp).filter(measurement.date >= date1).all()
@@ -63,20 +63,13 @@ def names():
     
     return jsonify(query_list)
 
-    # Convert list of tuples into normal list
-    all_names = list(np.ravel(results))
-
-    return jsonify(all_names)
-
 
 @app.route("/api/v1.0/stations")
-def passengers():
+def stations():
     # Create our session (link) from Python to the DB
     session = Session(engine)
-
-   
-   query = session.query(station.station, station.name, station.latitude, station.longitude, station.elevation).all()
-   session.close()
+    query = session.query(station.station, station.name, station.latitude, station.longitude, station.elevation).all()
+    session.close()
 
     query_list = []
     for id, name, lat, long, e in query:
@@ -87,20 +80,45 @@ def passengers():
         station_dict['Longitude'] = long
         station_dict['Elevation'] = e
         query_list.append(station_dict)
+        
+    return jsonify(query_list)
 
 
+@app.route("/api/v1.0/tobs")
+def tobs():
+    session = Session(engine)
+    query = session.query(measurement.date).order_by(desc(measurement.date)).first()
+    recent_date_str = datetime.strptime(query[0], '%Y-%m-%d')
+    date1 = dt.date(recent_date_str.year - 1, recent_date_str.month, recent_date_str.day)
+    last12m_tobs = session.query(measurement.date, measurement.tobs).filter(measurement.date >= date1).all()
 
-    # Create a dictionary from the row data and append to a list of all_passengers
-    all_passengers = []
-    for name, age, sex in results:
-        passenger_dict = {}
-        passenger_dict["name"] = name
-        passenger_dict["age"] = age
-        passenger_dict["sex"] = sex
-        all_passengers.append(passenger_dict)
+    query_list = []
+    for date, tobs in last12m_tobs:
+        tobs_dict = {}
+        tobs_dict['date'] = date
+        tobs_dict['tobs'] = tobs
+        query_list.append(tobs_dict)
 
-    return jsonify(all_passengers)
+    return jsonify(tobs_dict)
 
+
+@app.route("/api/v1.0/<start> and /api/v1.0/<end>")
+def range(start, end):
+    if start != None and end != None:
+        query = session.query(measurement.station, func.min(measurement.tobs), func.max(measurement.tobs), func.avg(measurement.tobs), func.count(measurement.tobs)).filter(measurement.date >= start).filter(measurement.date <= end).all()
+    else:
+        query = session.query(measurement.station, func.min(measurement.tobs), func.max(measurement.tobs), func.avg(measurement.tobs), func.count(measurement.tobs)).filter(measurement.date >= start).all()
+
+    query_list = []
+    for station, min_tobs, max_tobs, avg_tobs in query:
+        range_dict = {}
+        range_dict['station'] = station
+        range_ditct['min'] = min
+        range_dict['max'] = max
+        range_dict['avg'] = avg
+        query_list.append(range_dict)
+    
+    return jsonify(range_dict)
 
 if __name__ == '__main__':
     app.run(debug=True)
