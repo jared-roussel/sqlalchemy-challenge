@@ -1,5 +1,6 @@
 import numpy as np
 
+
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from flask import Flask, jsonify
 # Database Setup
 #################################################
 engine = create_engine("sqlite:///Resources\hawaii.sqlite")
+conn = engine.connect()
 
 # reflect an existing database into a new model
 Base = automap_base()
@@ -49,6 +51,10 @@ def welcome():
 def precipitation():
     # Create our session (link) from Python to the DB
     session = Session(engine)
+    recent_date = session.query(measurement.date).order_by(desc(measurement.date)).first()
+    recent_date_str = datetime.strptime(recent_date[0], '%Y-%m-%d')
+    date1 = dt.date(recent_date_str.year - 1, recent_date_str.month, recent_date_str.day)
+
     query = session.query(measurement.date, measurement.prcp).filter(measurement.date >= date1).all()
 
     session.close()
@@ -88,6 +94,7 @@ def stations():
 def tobs():
     session = Session(engine)
     query = session.query(measurement.date).order_by(desc(measurement.date)).first()
+    recent_date = session.query(measurement.date).order_by(desc(measurement.date)).first()
     recent_date_str = datetime.strptime(query[0], '%Y-%m-%d')
     date1 = dt.date(recent_date_str.year - 1, recent_date_str.month, recent_date_str.day)
     last12m_tobs = session.query(measurement.date, measurement.tobs).filter(measurement.date >= date1).all()
